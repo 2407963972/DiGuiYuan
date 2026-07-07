@@ -155,7 +155,7 @@ def _budget_from_brightness(b: float) -> int:
         return 4
     if b > 0.5:
         return 2
-    if b > 0.3:
+    if b > 0.2:
         return 1
     return 0
 
@@ -177,9 +177,11 @@ def _recurse(triple, parent, budget, depth, out, brightness_fn, canvas_size, max
     new_c = _reflect_new(triple, parent)
     if not _valid_new(new_c, canvas_size, min_r):
         return
-    b_val = brightness_fn(new_c.cx, new_c.cy)
+    b_val = brightness_fn(new_c.cx, new_c.cy, new_c.r)
     local = _budget_from_brightness(b_val)
-    new_budget = min(budget - 1, local)
+    # Decouple from parent budget: bright regions refresh to their own local budget,
+    # so recursion continues as long as brightness allows (bounded by max_depth).
+    new_budget = local
     out.append((new_c, depth))
     if new_budget <= 0:
         return
@@ -191,7 +193,7 @@ def _recurse(triple, parent, budget, depth, out, brightness_fn, canvas_size, max
 
 
 def build_gasket(big, smalls, brightness_fn, canvas_size,
-                 max_depth=8, min_r=0.8, initial_budget=8):
+                 max_depth=10, min_r=0.5):
     """Return list of (Circle, depth) covering the outer, the initial smalls, and all recursed."""
     out = [(big, 0)]
     for s in smalls:
@@ -204,9 +206,8 @@ def build_gasket(big, smalls, brightness_fn, canvas_size,
         for new_c in roots:
             if not _valid_new(new_c, canvas_size, min_r):
                 continue
-            b_val = brightness_fn(new_c.cx, new_c.cy)
-            local = _budget_from_brightness(b_val)
-            budget = min(initial_budget, local)
+            b_val = brightness_fn(new_c.cx, new_c.cy, new_c.r)
+            budget = _budget_from_brightness(b_val)
             out.append((new_c, 1))
             if budget <= 0:
                 continue
@@ -223,9 +224,8 @@ def build_gasket(big, smalls, brightness_fn, canvas_size,
             new_c = _reflect_new(triple, parent)
             if not _valid_new(new_c, canvas_size, min_r):
                 continue
-            b_val = brightness_fn(new_c.cx, new_c.cy)
-            local = _budget_from_brightness(b_val)
-            budget = min(initial_budget, local)
+            b_val = brightness_fn(new_c.cx, new_c.cy, new_c.r)
+            budget = _budget_from_brightness(b_val)
             out.append((new_c, 1))
             if budget <= 0:
                 continue

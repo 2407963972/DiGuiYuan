@@ -4,20 +4,18 @@ from __future__ import annotations
 import random
 import sys
 import tkinter as tk
-from functools import partial
 from tkinter import filedialog, messagebox
 
 from PIL import Image, ImageTk
 
 from apollonian import build_gasket, make_initial
-from image_processor import center_brightness, load_and_process, sample_brightness
+from image_processor import center_brightness, load_and_process, sample_brightness_region
 from renderer import render
 
 CANVAS_SIZE = 1000
 BIG_RADIUS = 300
-MAX_DEPTH = 8
-MIN_RADIUS = 0.8
-INITIAL_BUDGET = 8
+MAX_DEPTH = 10
+MIN_RADIUS = 0.5
 CENTER_BRIGHT_THRESHOLD = 0.5
 DISPLAY_SIZE = 480
 
@@ -88,7 +86,9 @@ class App:
     def _generate_and_show(self, seed: int | None) -> None:
         rng = random.Random(seed)
         matrix = self._matrix
-        brightness_fn = partial(sample_brightness, matrix, canvas_size=CANVAS_SIZE)
+
+        def brightness_fn(cx: float, cy: float, r: float) -> float:
+            return sample_brightness_region(matrix, cx, cy, r, CANVAS_SIZE)
 
         center_val = center_brightness(matrix)
         n = 3 if center_val > CENTER_BRIGHT_THRESHOLD else 2
@@ -98,7 +98,7 @@ class App:
         big, smalls = make_initial(CANVAS_SIZE, BIG_RADIUS, n, rng)
         circles = build_gasket(
             big, smalls, brightness_fn, CANVAS_SIZE,
-            max_depth=MAX_DEPTH, min_r=MIN_RADIUS, initial_budget=INITIAL_BUDGET,
+            max_depth=MAX_DEPTH, min_r=MIN_RADIUS,
         )
         canvas = render(circles, size=CANVAS_SIZE, max_depth=MAX_DEPTH)
         disp = canvas.resize((DISPLAY_SIZE, DISPLAY_SIZE), Image.LANCZOS)
